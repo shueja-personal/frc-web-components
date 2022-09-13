@@ -6,6 +6,7 @@ import addVaadinElementsPlugin from './vaadin-elements';
 import addWiredElementsPlugin from './wired-elements';
 import addTutorialPlugin from './tutorial';
 import addSourceElementsPlugin from './source-elements';
+import addField3dElementsPlugin from './field3d';
 
 export default function addPlugins(dashboard: FrcDashboard): void {
   addDashboardComponentsPlugin(dashboard);
@@ -15,6 +16,7 @@ export default function addPlugins(dashboard: FrcDashboard): void {
   addWiredElementsPlugin(dashboard);
   addTutorialPlugin(dashboard);
   addSourceElementsPlugin(dashboard);
+  addField3dElementsPlugin(dashboard);
 }
 
 export const addDashboardComponents = addDashboardComponentsPlugin;
@@ -24,3 +26,4 @@ export const addVaadinElements = addVaadinElementsPlugin;
 export const addWiredElements = addWiredElementsPlugin;
 export const addTutorial = addTutorialPlugin;
 export const addSourceElements = addSourceElementsPlugin;
+export const addField3dElements = addField3dElementsPlugin;
