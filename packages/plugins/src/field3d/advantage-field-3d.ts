@@ -110,8 +110,8 @@ export default class ThreeDimensionVisualizer {
 
     this.field3dConfig = {
       title: 'Field',
-      path: '/models/Field3d_Evergreen.glb',
-      rotations: [],
+      path: '/models/Field3d_2022.glb',
+      rotations: [{ axis: 'x', degrees: 90 }],
       widthInches: 12 * 54,
       heightInches: 12 * 27,
     };
