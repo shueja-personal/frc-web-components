@@ -1,7 +1,6 @@
 /* eslint-disable import/extensions */
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { render } from 'lit';
 import ThreeDimensionVisualizer from './advantage-field-3d';
 
 export default class Field3DElement extends HTMLElement {
@@ -33,7 +32,12 @@ export default class Field3DElement extends HTMLElement {
             position: [0, (this.renderLoopId % 270) / 10, 0],
             rotation: [0, 0, 0, 0],
           },
-          green: [],
+          green: [
+            {
+              position: [(this.renderLoopId % 270) / 10, 0, 0],
+              rotation: [0, 0, 1, 0],
+            },
+          ],
           blue: [],
           yellow: [],
         },
@@ -48,6 +52,11 @@ export default class Field3DElement extends HTMLElement {
   }
 
   // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-empty-function
-  resized(): void {}
+  resized(): void {
+    const clientWidth = this.getBoundingClientRect().width - 20;
+    const clientHeight = this.getBoundingClientRect().height - 20;
+
+    this.viz.resizeCanvas(clientWidth, clientHeight);
+  }
 }
 customElements.define('fwc-field-element', Field3DElement);

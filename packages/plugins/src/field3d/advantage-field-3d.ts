@@ -4,7 +4,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import * as THREE from 'three';
 import { Quaternion } from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { ArcballControls } from 'three/examples/jsm/controls/ArcballControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import {
   Config3dField,
@@ -40,7 +40,7 @@ export default class ThreeDimensionVisualizer {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
-  private controls: OrbitControls;
+  private controls: ArcballControls;
   private wpilibCoordinateGroup: THREE.Group; // Rotated to match WPILib coordinates
   private wpilibFieldCoordinateGroup: THREE.Group; // Field coordinates (origin at driver stations and flipped based on alliance)
   private field: THREE.Object3D | null = null;
@@ -165,7 +165,7 @@ export default class ThreeDimensionVisualizer {
     }
 
     // Create controls
-    this.controls = new OrbitControls(this.camera, canvas);
+    this.controls = new ArcballControls(this.camera, canvas, this.scene);
     this.controls.target.copy(this.ORBIT_DEFAULT_TARGET);
     this.controls.maxDistance = 30;
     this.controls.enabled = true;
@@ -505,11 +505,11 @@ export default class ThreeDimensionVisualizer {
             new THREE.Quaternion()
           );
           const position = this.robot.getWorldPosition(new THREE.Vector3());
-          let rotation = this.robot
+          const rotation = this.robot
             .getWorldQuaternion(new THREE.Quaternion())
             .multiply(this.WPILIB_ROTATION);
           position.negate();
-          rotation = rotation.inverse();
+          rotation.invert();
           this.wpilibCoordinateGroup.position.copy(
             position.clone().applyQuaternion(rotation)
           );
@@ -574,6 +574,22 @@ export default class ThreeDimensionVisualizer {
     this.renderer.render(this.scene, this.camera);
   }
 
+  public resizeCanvas(clientWidth: number, clientHeight: number) {
+    const { devicePixelRatio } = window;
+    const canvas = this.renderer.domElement;
+    if (
+      canvas.width / devicePixelRatio != clientWidth ||
+      canvas.height / devicePixelRatio != clientHeight
+    ) {
+      this.renderer.setSize(
+        clientWidth / devicePixelRatio,
+        clientHeight / devicePixelRatio,
+        false
+      );
+      this.camera.aspect = clientWidth / clientHeight;
+      this.camera.updateProjectionMatrix();
+    }
+  }
   /** Converts a rotation sequence to a quaternion. */
   private getQuaternionFromRotSeq(
     rotations: Config3d_Rotation[]

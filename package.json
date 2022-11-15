@@ -27,6 +27,7 @@
     "@iconify/iconify": "^2.1.2",
     "@lit-labs/context": "^0.1.1",
     "@vaadin/vaadin": "^22.0.0",
+    "@types/three": "^0.144.0",
     "api-viewer-element": "^0.4.4",
     "chart.js": "^2.8.0",
     "codeflask": "^1.4.1",
@@ -38,7 +39,7 @@
     "lit": "^2.0.0-rc.2",
     "roughjs": "4.4",
     "svg-gauge": "^1.0.6",
-    "three": "^0.116.1",
+    "three": "^0.144.0",
     "urdf-loader": "^0.8.2",
     "wired-elements": "^3.0.0-rc.6"
   },
