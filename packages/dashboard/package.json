@@ -6,7 +6,7 @@
     "dist",
     "types"
   ],
-  "main": "dist/dashboard.es.js",
+  "main": "./dist/dashboard.es.js",
   "exports": {
     ".": "./dist/dashboard.es.js"
   },
