@@ -3,7 +3,7 @@
 /* eslint-disable camelcase */
 /* eslint-disable import/no-extraneous-dependencies */
 import * as THREE from 'three';
-import { Quaternion } from 'three';
+
 import { ArcballControls } from 'three/examples/jsm/controls/ArcballControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import {
@@ -18,6 +18,15 @@ export interface Pose3d {
   position: [number, number, number]; // X, Y, Z
   rotation: [number, number, number, number]; // W, X, Y, Z
 }
+
+export type Command = {
+  objects: THREE.Object3D[];
+  options: {
+    field: string;
+    robot: string;
+    alliance: string;
+  };
+};
 export default class ThreeDimensionVisualizer {
   // private EFFICIENCY_MAX_FPS = 15;
   private ORBIT_FOV = 50;
@@ -46,12 +55,8 @@ export default class ThreeDimensionVisualizer {
   private field: THREE.Object3D | null = null;
   private robot: THREE.Object3D | null = null;
   private robotCameras: THREE.Object3D[] = [];
-  private greenCones: THREE.Object3D[] = [];
-  private blueCones: THREE.Object3D[] = [];
-  private yellowCones: THREE.Object3D[] = [];
 
-  private command: any;
-  private shouldRender = false;
+  private command: Command;
   private cameraIndex = -1;
   private lastCameraIndex = -1;
   // private lastFrameTime = 0;
@@ -66,52 +71,24 @@ export default class ThreeDimensionVisualizer {
   private lastFieldTitle = '';
   private lastRobotTitle = '';
   private lastRobotVisible = false;
+  private lastAlliance = 'blue';
 
-  private coneTextureGreen: THREE.Texture;
-  private coneTextureGreenBase: THREE.Texture;
-  private coneTextureBlue: THREE.Texture;
-  private coneTextureBlueBase: THREE.Texture;
-  private coneTextureYellow: THREE.Texture;
-  private coneTextureYellowBase: THREE.Texture;
   private field3dConfig: Config3dField;
   private robot3dConfig: Config3dRobot;
-  private origin: THREE.Object3D;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const originGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const originMaterial = new THREE.MeshBasicMaterial();
-    this.origin = new THREE.Mesh(originGeometry, originMaterial);
     // eslint-disable-next-line prefer-destructuring
 
     this.renderer = new THREE.WebGLRenderer({ canvas });
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.scene = new THREE.Scene();
-    this.scene.add(this.origin);
-
-    // Change camera menu
-    // let startPx: [number, number] | null = null;
-    // canvas.addEventListener("contextmenu", (event) => {
-    //   startPx = [event.x, event.y];
-    // });
-    // canvas.addEventListener("mouseup", (event) => {
-    //   if (startPx && event.x == startPx[0] && event.y == startPx[1]) {
-    //     if (!this.command) return;
-    //     const robotTitle = this.command.options.robot;
-    //     const robotConfig = window.frcData?.robots.find((robotData) => robotData.title === robotTitle);
-    //     if (robotConfig == undefined) return;
-    //     window.sendMainMessage("ask-3d-camera", {
-    //       options: robotConfig.cameras.map((camera) => camera.name),
-    //       selectedIndex: this.cameraIndex >= robotConfig.cameras.length ? -1 : this.cameraIndex
-    //     });
-    //   }
-    //   startPx = null;
-    // });
 
     this.field3dConfig = {
       title: 'Field',
-      path: '/models/Field3d_2022.glb',
-      rotations: [{ axis: 'x', degrees: 90 }],
+      path: '/models/Field3d_Evergreen.glb',
+      rotations: [],
+      // rotations: [{ axis: 'x', degrees: 90 }],
       widthInches: 12 * 54,
       heightInches: 12 * 27,
     };
@@ -147,7 +124,6 @@ export default class ThreeDimensionVisualizer {
     this.wpilibCoordinateGroup.rotation.setFromQuaternion(this.WPILIB_ROTATION);
     this.wpilibFieldCoordinateGroup = new THREE.Group();
     this.wpilibCoordinateGroup.add(this.wpilibFieldCoordinateGroup);
-    this.wpilibFieldCoordinateGroup.add(this.origin);
 
     // Create camera
     {
@@ -193,42 +169,48 @@ export default class ThreeDimensionVisualizer {
       light.position.set(0, -10, 0);
       this.scene.add(light);
     }
+    this.command = {
+      objects: [],
+      options: {
+        field: this.field3dConfig.title,
+        robot: this.robot3dConfig.title,
+        alliance: 'blue',
+      },
+    };
 
-    // Load cone textures
-    const loader = new THREE.TextureLoader();
-    this.coneTextureGreen = loader.load('/textures/cone-green.png');
-    this.coneTextureBlue = loader.load('/textures/cone-blue.png');
-    this.coneTextureYellow = loader.load('/textures/cone-yellow.png');
-    this.coneTextureGreen.offset.set(0.25, 0);
-    this.coneTextureBlue.offset.set(0.25, 0);
-    this.coneTextureYellow.offset.set(0.25, 0);
-    this.coneTextureGreenBase = loader.load('/textures/cone-green-base.png');
-    this.coneTextureBlueBase = loader.load('/textures/cone-blue-base.png');
-    this.coneTextureYellowBase = loader.load('/textures/cone-yellow-base.png');
-
+    const isBlue = this.command.options?.alliance == 'blue';
+    this.wpilibFieldCoordinateGroup.setRotationFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      isBlue ? 0 : Math.PI
+    );
+    this.wpilibFieldCoordinateGroup.position.set(
+      convert(this.field3dConfig.widthInches / 2, 'inches', 'meters') *
+        (isBlue ? -1 : 1),
+      convert(this.field3dConfig.heightInches / 2, 'inches', 'meters') *
+        (isBlue ? -1 : 1),
+      0
+    );
+    // Load cone texture
     // Render when camera is moved
     // eslint-disable-next-line no-return-assign
-    this.controls.addEventListener('change', () => (this.shouldRender = true));
+    this.controls.addEventListener('change', () => this.renderFrame());
 
     // Render loop
-    const periodic = () => {
-      this.renderFrame();
-      window.requestAnimationFrame(periodic);
-    };
-    window.requestAnimationFrame(periodic);
+    this.renderFrame();
   }
 
   /** Switches the selected camera. */
   set3DCamera(index: number) {
     this.cameraIndex = index;
-    this.shouldRender = true;
+    this.renderFrame();
   }
 
-  render(command: any): number | null {
+  render(command: Partial<Command>): number | null {
+    Object.assign(this.command, command);
     if (JSON.stringify(command) !== JSON.stringify(this.command)) {
-      this.shouldRender = true;
+      this.renderFrame();
     }
-    this.command = command;
+
     return this.lastAspectRatio;
   }
 
@@ -247,7 +229,6 @@ export default class ThreeDimensionVisualizer {
       this.lastHeight = this.renderer.domElement.clientHeight;
       this.lastDevicePixelRatio = window.devicePixelRatio;
       this.lastIsDark = isDark;
-      this.shouldRender = true;
     }
 
     // Exit if no command is set
@@ -266,15 +247,12 @@ export default class ThreeDimensionVisualizer {
     // }
 
     // Check if rendering should continue
-    if (!this.shouldRender) {
-      return;
-    }
     // this.lastFrameTime = now;
-    this.shouldRender = false;
 
     // Get config
-    const fieldTitle = this.command.options.field;
-    const robotTitle = this.command.options.robot;
+    const fieldObjects = this.command.objects as THREE.Object3D[];
+    const fieldTitle = this.command.options?.field || this.lastFieldTitle;
+    const robotTitle = this.command.options?.robot || this.lastRobotTitle;
     const fieldConfig = this.field3dConfig;
     const robotConfig = this.robot3dConfig;
     if (fieldConfig == undefined || robotConfig == undefined) return;
@@ -299,262 +277,18 @@ export default class ThreeDimensionVisualizer {
         this.wpilibCoordinateGroup.add(this.field);
 
         // Render new frame
-        this.shouldRender = true;
+        this.renderFrame();
       });
     }
 
     // Add robot
-    if (robotTitle != this.lastRobotTitle) {
-      this.lastRobotTitle = robotTitle;
-      if (this.robot && this.lastRobotVisible) {
-        this.wpilibFieldCoordinateGroup.remove(this.robot);
-      }
-      this.robot = null;
-      this.robotCameras = [];
 
-      const loader = new GLTFLoader();
-      loader.load(robotConfig.path, (gltf) => {
-        if (robotConfig == undefined) return;
-
-        // Set position and rotation of model
-        const robotModel = gltf.scene;
-        robotModel.rotation.setFromQuaternion(
-          this.getQuaternionFromRotSeq(robotConfig.rotations)
-        );
-        robotModel.position.set(...robotConfig.position);
-
-        // Create group and add to scene
-        this.robot = new THREE.Group().add(robotModel);
-        if (this.lastRobotVisible) {
-          this.wpilibFieldCoordinateGroup.add(this.robot);
-          console.log('add robot');
+    if (fieldObjects) {
+      fieldObjects.forEach((value) => {
+        if (!this.wpilibFieldCoordinateGroup.children.includes(value)) {
+          this.wpilibFieldCoordinateGroup.add(value);
         }
-
-        // Set up cameras
-        this.robotCameras = robotConfig.cameras.map(
-          (camera: Config3dRobot_Camera) => {
-            const cameraObj = new THREE.Object3D();
-            const extraRotations: Config3d_Rotation[] = [
-              {
-                axis: 'z',
-                degrees: -90,
-              },
-              {
-                axis: 'y',
-                degrees: -90,
-              },
-            ];
-            cameraObj.rotation.setFromQuaternion(
-              this.getQuaternionFromRotSeq([
-                ...extraRotations,
-                ...camera.rotations,
-              ])
-            );
-            cameraObj.position.set(...camera.position);
-            this.robot?.add(cameraObj);
-            return cameraObj;
-          }
-        );
-
-        // Render new frame
-        this.shouldRender = true;
       });
-    }
-
-    // Update field coordinates
-    if (fieldConfig) {
-      const isBlue = this.command.options.alliance == 'blue';
-      this.wpilibFieldCoordinateGroup.setRotationFromAxisAngle(
-        new THREE.Vector3(0, 0, 1),
-        isBlue ? 0 : Math.PI
-      );
-      this.wpilibFieldCoordinateGroup.position.set(
-        convert(fieldConfig.widthInches / 2, 'inches', 'meters') *
-          (isBlue ? -1 : 1),
-        convert(fieldConfig.heightInches / 2, 'inches', 'meters') *
-          (isBlue ? -1 : 1),
-        0
-      );
-    }
-
-    // Set robot position
-    if (this.robot) {
-      const robotPose: Pose3d | null = this.command.poses.robot;
-      if (robotPose != null) {
-        if (!this.lastRobotVisible) {
-          this.wpilibFieldCoordinateGroup.add(this.robot);
-        }
-
-        // Set position and rotation
-        this.robot.position.set(...robotPose.position);
-        this.robot.rotation.setFromQuaternion(
-          new Quaternion(
-            robotPose.rotation[1],
-            robotPose.rotation[2],
-            robotPose.rotation[3],
-            robotPose.rotation[0]
-          )
-        );
-      } else if (this.lastRobotVisible) {
-        // Robot is no longer visible, remove
-        this.wpilibFieldCoordinateGroup.remove(this.robot);
-      }
-      this.lastRobotVisible = robotPose != null;
-    }
-
-    // Function to update a set of cones
-    const updateCones = (
-      poseData: Pose3d[],
-      objectArray: THREE.Object3D[],
-      texture: THREE.Texture,
-      textureBase: THREE.Texture
-    ) => {
-      // Remove extra cones
-      while (poseData.length < objectArray.length) {
-        const cone = objectArray.pop();
-        if (cone) this.wpilibFieldCoordinateGroup.remove(cone);
-      }
-
-      // Add new cones
-      while (poseData.length > objectArray.length) {
-        const cone = new THREE.Group();
-        const coneMesh = new THREE.Mesh(
-          new THREE.ConeGeometry(0.06, 0.25, 16, 32),
-          [
-            new THREE.MeshPhongMaterial({
-              map: texture,
-            }),
-            new THREE.MeshPhongMaterial(),
-            new THREE.MeshPhongMaterial({
-              map: textureBase,
-            }),
-          ]
-        );
-        coneMesh.position.set(-0.125, 0, 0);
-        coneMesh.rotateZ(-Math.PI / 2);
-        coneMesh.rotateY(-Math.PI / 2);
-        cone.add(coneMesh);
-        objectArray.push(cone);
-        this.wpilibFieldCoordinateGroup.add(cone);
-      }
-
-      // Set cone poses
-      poseData.forEach((pose, index) => {
-        if (!fieldConfig) return;
-        const cone = objectArray[index];
-        cone.position.set(...pose.position);
-        cone.rotation.setFromQuaternion(
-          new Quaternion(
-            pose.rotation[1],
-            pose.rotation[2],
-            pose.rotation[3],
-            pose.rotation[0]
-          )
-        );
-      });
-    };
-
-    // Update all sets of cones
-    updateCones(
-      this.command.poses.green,
-      this.greenCones,
-      this.coneTextureGreen,
-      this.coneTextureGreenBase
-    );
-    updateCones(
-      this.command.poses.blue,
-      this.blueCones,
-      this.coneTextureBlue,
-      this.coneTextureBlueBase
-    );
-    updateCones(
-      this.command.poses.yellow,
-      this.yellowCones,
-      this.coneTextureYellow,
-      this.coneTextureYellowBase
-    );
-
-    // Set camera for fixed views
-    {
-      // Reset camera index if invalid
-      if (this.cameraIndex >= this.robotCameras.length) this.cameraIndex = -1;
-
-      // Update camera controls
-      const orbitalCamera = this.cameraIndex < 0;
-      if (orbitalCamera != this.controls.enabled) {
-        this.controls.enabled = orbitalCamera;
-        this.controls.update();
-      }
-
-      // Update container and camera based on mode
-      let fov = this.ORBIT_FOV;
-      this.lastAspectRatio = null;
-      if (orbitalCamera) {
-        this.canvas.classList.remove('fixed');
-        this.canvas.style.aspectRatio = '';
-        if (this.cameraIndex == -1) {
-          // Reset to default origin
-          this.wpilibCoordinateGroup.position.set(0, 0, 0);
-          this.wpilibCoordinateGroup.rotation.setFromQuaternion(
-            this.WPILIB_ROTATION
-          );
-        } else if (this.robot) {
-          // Shift based on robot location
-          this.wpilibCoordinateGroup.position.set(0, 0, 0);
-          this.wpilibCoordinateGroup.rotation.setFromQuaternion(
-            new THREE.Quaternion()
-          );
-          const position = this.robot.getWorldPosition(new THREE.Vector3());
-          const rotation = this.robot
-            .getWorldQuaternion(new THREE.Quaternion())
-            .multiply(this.WPILIB_ROTATION);
-          position.negate();
-          rotation.invert();
-          this.wpilibCoordinateGroup.position.copy(
-            position.clone().applyQuaternion(rotation)
-          );
-          this.wpilibCoordinateGroup.rotation.setFromQuaternion(rotation);
-        }
-        if (this.cameraIndex != this.lastCameraIndex) {
-          if (this.cameraIndex == -1) {
-            this.camera.position.copy(this.ORBIT_FIELD_DEFAULT_POSITION);
-          } else {
-            this.camera.position.copy(this.ORBIT_ROBOT_DEFAULT_POSITION);
-          }
-          this.controls.target.copy(this.ORBIT_DEFAULT_TARGET);
-          this.controls.update();
-        }
-      } else {
-        this.canvas.classList.add('fixed');
-        let aspectRatio = 16 / 9;
-        if (robotConfig) {
-          // Get fixed aspect ratio and FOV
-          const cameraConfig = robotConfig.cameras[this.cameraIndex];
-          aspectRatio = cameraConfig.resolution[0] / cameraConfig.resolution[1];
-          this.lastAspectRatio = aspectRatio;
-          fov = (cameraConfig.fov * aspectRatio) / 2;
-          this.canvas.style.aspectRatio = aspectRatio.toString();
-
-          // Update camera position
-          if (this.lastRobotVisible) {
-            const cameraObj = this.robotCameras[this.cameraIndex];
-            this.camera.position.copy(
-              cameraObj.getWorldPosition(new THREE.Vector3())
-            );
-            this.camera.rotation.setFromQuaternion(
-              cameraObj.getWorldQuaternion(new THREE.Quaternion())
-            );
-          }
-        }
-      }
-
-      // Update camera FOV
-      if (fov != this.camera.fov) {
-        this.camera.fov = fov;
-        this.camera.updateProjectionMatrix();
-      }
-
-      this.lastCameraIndex = this.cameraIndex;
     }
 
     // Render new frame
@@ -588,6 +322,7 @@ export default class ThreeDimensionVisualizer {
       );
       this.camera.aspect = clientWidth / clientHeight;
       this.camera.updateProjectionMatrix();
+      this.renderFrame();
     }
   }
   /** Converts a rotation sequence to a quaternion. */

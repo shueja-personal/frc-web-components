@@ -15,44 +15,13 @@ export default class Field3DElement extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.shadowRoot?.append(this.canvas);
     this.viz = new ThreeDimensionVisualizer(this.canvas);
-    this.viz.set3DCamera(1);
-    this.viz.render({
-      poses: {
-        robot: { position: [0, 0, 0], rotation: [0, 0, 0, 0] },
-        green: [],
-        blue: [],
-        yellow: [],
-      },
-      options: {},
-    });
-    const updateLoop = () => {
-      this.renderLoopId += 1;
-      this.viz.set3DCamera(0);
-      this.viz.render({
-        poses: {
-          robot: {
-            position: [0, (this.renderLoopId % 270) / 10, 0],
-            rotation: [0, 0, 0, 0],
-          },
-          green: [
-            {
-              position: [(this.renderLoopId % 270) / 10, 0, 0],
-              rotation: [0, 0, 1, 0],
-            },
-          ],
-          blue: [],
-          yellow: [],
-        },
-        options: {},
-      });
-      window.requestAnimationFrame(updateLoop);
-    };
-    window.requestAnimationFrame(updateLoop);
+    this.viz.set3DCamera(-1);
+    this.viz.render({});
+    // window.requestAnimationFrame(updateLoop);
   }
   connectedCallback() {
     this.resized();
   }
-
   // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-empty-function
   resized(): void {
     const clientWidth = this.getBoundingClientRect().width - 20;
