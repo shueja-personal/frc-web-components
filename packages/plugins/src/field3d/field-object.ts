@@ -6,7 +6,18 @@ import { customElement, property } from 'lit/decorators.js';
 import { WebbitConfig } from '@webbitjs/webbit';
 import Store, { SourceProvider } from '@webbitjs/store';
 import * as THREE from 'three';
-import { Quaternion } from 'three';
+import {
+  BoxGeometry,
+  BufferGeometry,
+  Material,
+  Mesh,
+  MeshBasicMaterial,
+  Quaternion,
+} from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+// eslint-disable-next-line camelcase
+import { Config3dRobot, Config3d_Rotation } from './FRCData';
+import { convert } from './units';
 
 export const field3dObjectConfig: Partial<WebbitConfig> = {
   properties: {
@@ -38,13 +49,41 @@ export default class FieldObject3DElement extends LitElement {
   @property({ type: String, attribute: 'source-provider' }) sourceProvider = '';
   @property({ type: String, attribute: 'source-key' }) sourceKey = '';
   coneMesh: THREE.InstancedMesh;
+  robotMesh: THREE.InstancedMesh;
   private displayedMesh: THREE.InstancedMesh;
   private coneTexture: THREE.Texture;
   private coneTextureBase: THREE.Texture;
-  private MAX_INSTACE_COUNT = 500;
+  private MAX_INSTANCE_COUNT = 500;
+  private robot3dConfig: Config3dRobot;
 
   constructor() {
     super();
+
+    this.robot3dConfig = {
+      title: 'Robot',
+      path: '/models/Robot_KitBot.glb',
+      rotations: [{ axis: 'z', degrees: 90 }],
+      position: [0.12, 3.15, 0],
+      cameras: [
+        {
+          name: 'Front Camera',
+          rotations: [{ axis: 'y', degrees: 20 }],
+          position: [0.2, 0, 0.8],
+          resolution: [960, 720],
+          fov: 100,
+        },
+        {
+          name: 'Back Camera',
+          rotations: [
+            { axis: 'y', degrees: 20 },
+            { axis: 'z', degrees: 180 },
+          ],
+          position: [-0.2, 0, 0.8],
+          resolution: [960, 720],
+          fov: 100,
+        },
+      ],
+    };
     // Setup for cone mesh option
     {
       const loader = new THREE.TextureLoader();
@@ -52,9 +91,10 @@ export default class FieldObject3DElement extends LitElement {
       this.coneTexture.offset.set(0.25, 0);
       this.coneTextureBase = loader.load('/textures/cone-green-base.png');
     }
-
+    const coneGeometry = new THREE.ConeGeometry(0.18, 0.75, 16, 32);
+    coneGeometry.rotateZ(-Math.PI / 2);
     this.coneMesh = new THREE.InstancedMesh(
-      new THREE.ConeGeometry(0.18, 0.75, 16, 32),
+      coneGeometry,
       [
         new THREE.MeshPhongMaterial({
           map: this.coneTexture,
@@ -64,10 +104,31 @@ export default class FieldObject3DElement extends LitElement {
           map: this.coneTextureBase,
         }),
       ],
-      this.MAX_INSTACE_COUNT
+      this.MAX_INSTANCE_COUNT
     );
 
-    this.displayedMesh = this.coneMesh;
+    this.robotMesh = new THREE.InstancedMesh(
+      new BoxGeometry(0.5, 0.5, 0.5, 1, 1),
+      new MeshBasicMaterial({ color: '#ff00ff' }),
+      this.MAX_INSTANCE_COUNT
+    );
+    this.displayedMesh = this.robotMesh;
+    const robotConfig = this.robot3dConfig;
+    const loader = new GLTFLoader();
+    loader.load(robotConfig.path, (gltf) => {
+      if (robotConfig === undefined) return;
+      console.log(gltf.scene.children);
+      const { geometry } = gltf.scene.children[0] as Mesh;
+      geometry.applyQuaternion(
+        this.getQuaternionFromRotSeq(robotConfig.rotations)
+      );
+      geometry.translate(...robotConfig.position);
+      this.displayedMesh.geometry = geometry;
+      this.displayedMesh.material = (gltf.scene.children[0] as Mesh).material;
+      // Set position and rotation of model
+
+      // Create group and add to scene
+    });
   }
 
   getObject(): THREE.Object3D {
@@ -134,5 +195,25 @@ export default class FieldObject3DElement extends LitElement {
       },
       true
     );
+  }
+
+  // eslint-disable-next-line class-methods-use-this, camelcase
+  private getQuaternionFromRotSeq(
+    rotations: Config3d_Rotation[]
+  ): THREE.Quaternion {
+    const quaternion = new THREE.Quaternion();
+    rotations.forEach((rotation) => {
+      const axis = new THREE.Vector3(0, 0, 0);
+      if (rotation.axis === 'x') axis.setX(1);
+      if (rotation.axis === 'y') axis.setY(1);
+      if (rotation.axis === 'z') axis.setZ(1);
+      quaternion.premultiply(
+        new THREE.Quaternion().setFromAxisAngle(
+          axis,
+          convert(rotation.degrees, 'degrees', 'radians')
+        )
+      );
+    });
+    return quaternion;
   }
 }

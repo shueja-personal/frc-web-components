@@ -194,9 +194,12 @@ export default class ThreeDimensionVisualizer {
     // Render when camera is moved
     // eslint-disable-next-line no-return-assign
     this.controls.addEventListener('change', () => this.renderFrame());
-
     // Render loop
-    this.renderFrame();
+    const periodic = () => {
+      this.renderFrame();
+      window.requestAnimationFrame(periodic);
+    };
+    window.requestAnimationFrame(periodic);
   }
 
   /** Switches the selected camera. */

@@ -33,7 +33,7 @@ export default class Field3D extends LitElement {
   static styles = css`
     :host {
       display: inline-flex;
-      width: 350px;
+      width: 700px;
       height: 350px;
       justify-content: center;
       align-items: center;
@@ -78,7 +78,6 @@ export default class Field3D extends LitElement {
     _parentKey: string,
     _sourceKey: string
   ): void {
-    console.log('update field');
     if (sourceValue['.type'] !== 'Field3d') {
       return;
     }
