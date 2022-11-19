@@ -6,12 +6,7 @@ import * as THREE from 'three';
 
 import { ArcballControls } from 'three/examples/jsm/controls/ArcballControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import {
-  Config3dField,
-  Config3dRobot,
-  Config3dRobot_Camera,
-  Config3d_Rotation,
-} from './FRCData';
+import { Config3dField, Config3d_Rotation } from './FRCData';
 import { convert } from './units';
 
 export interface Pose3d {
@@ -32,7 +27,6 @@ export default class ThreeDimensionVisualizer {
   private ORBIT_FOV = 50;
   private ORBIT_DEFAULT_TARGET = new THREE.Vector3(0, 0.5, 0);
   private ORBIT_FIELD_DEFAULT_POSITION = new THREE.Vector3(0, 6, -12);
-  private ORBIT_ROBOT_DEFAULT_POSITION = new THREE.Vector3(2, 1, 1);
   private WPILIB_ROTATION = this.getQuaternionFromRotSeq([
     {
       axis: 'x',
@@ -53,12 +47,8 @@ export default class ThreeDimensionVisualizer {
   private wpilibCoordinateGroup: THREE.Group; // Rotated to match WPILib coordinates
   private wpilibFieldCoordinateGroup: THREE.Group; // Field coordinates (origin at driver stations and flipped based on alliance)
   private field: THREE.Object3D | null = null;
-  private robot: THREE.Object3D | null = null;
-  private robotCameras: THREE.Object3D[] = [];
 
   private command: Command;
-  private cameraIndex = -1;
-  private lastCameraIndex = -1;
   // private lastFrameTime = 0;
   private lastWidth: number | null = 0;
   private lastHeight: number | null = 0;
@@ -69,18 +59,14 @@ export default class ThreeDimensionVisualizer {
   // private lastIsBattery = false;
   // private lastFrcDataString = "";
   private lastFieldTitle = '';
-  private lastRobotTitle = '';
-  private lastRobotVisible = false;
-  private lastAlliance = 'blue';
 
   private field3dConfig: Config3dField;
-  private robot3dConfig: Config3dRobot;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     // eslint-disable-next-line prefer-destructuring
 
-    this.renderer = new THREE.WebGLRenderer({ canvas });
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas });
     this.renderer.outputEncoding = THREE.sRGBEncoding;
     this.scene = new THREE.Scene();
 
@@ -93,31 +79,6 @@ export default class ThreeDimensionVisualizer {
       heightInches: 12 * 27,
     };
 
-    this.robot3dConfig = {
-      title: 'Robot',
-      path: '/models/Robot_KitBot.glb',
-      rotations: [{ axis: 'z', degrees: 90 }],
-      position: [0.12, 3.15, 0],
-      cameras: [
-        {
-          name: 'Front Camera',
-          rotations: [{ axis: 'y', degrees: 20 }],
-          position: [0.2, 0, 0.8],
-          resolution: [960, 720],
-          fov: 100,
-        },
-        {
-          name: 'Back Camera',
-          rotations: [
-            { axis: 'y', degrees: 20 },
-            { axis: 'z', degrees: 180 },
-          ],
-          position: [-0.2, 0, 0.8],
-          resolution: [960, 720],
-          fov: 100,
-        },
-      ],
-    };
     // Create coordinate groups
     this.wpilibCoordinateGroup = new THREE.Group();
     this.scene.add(this.wpilibCoordinateGroup);
@@ -173,7 +134,7 @@ export default class ThreeDimensionVisualizer {
       objects: [],
       options: {
         field: this.field3dConfig.title,
-        robot: this.robot3dConfig.title,
+        robot: '',
         alliance: 'blue',
       },
     };
@@ -200,12 +161,6 @@ export default class ThreeDimensionVisualizer {
       window.requestAnimationFrame(periodic);
     };
     window.requestAnimationFrame(periodic);
-  }
-
-  /** Switches the selected camera. */
-  set3DCamera(index: number) {
-    this.cameraIndex = index;
-    this.renderFrame();
   }
 
   render(command: Partial<Command>): number | null {
@@ -236,7 +191,6 @@ export default class ThreeDimensionVisualizer {
 
     // Exit if no command is set
     if (!this.command) {
-      console.log(' no command ');
       return; // Continue trying to render
     }
 
@@ -255,10 +209,9 @@ export default class ThreeDimensionVisualizer {
     // Get config
     const fieldObjects = this.command.objects as THREE.Object3D[];
     const fieldTitle = this.command.options?.field || this.lastFieldTitle;
-    const robotTitle = this.command.options?.robot || this.lastRobotTitle;
     const fieldConfig = this.field3dConfig;
-    const robotConfig = this.robot3dConfig;
-    if (fieldConfig == undefined || robotConfig == undefined) return;
+
+    if (fieldConfig == undefined) return;
 
     // Check for new FRC data
 
@@ -311,7 +264,7 @@ export default class ThreeDimensionVisualizer {
     this.renderer.render(this.scene, this.camera);
   }
 
-  public resizeCanvas(clientWidth: number, clientHeight: number) {
+  public resizeCanvas(clientWidth: number, clientHeight: number): void {
     const { devicePixelRatio } = window;
     const canvas = this.renderer.domElement;
     if (

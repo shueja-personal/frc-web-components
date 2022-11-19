@@ -15,7 +15,6 @@ export default class Field3DElement extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.shadowRoot?.append(this.canvas);
     this.viz = new ThreeDimensionVisualizer(this.canvas);
-    this.viz.set3DCamera(-1);
     this.viz.render({});
     // window.requestAnimationFrame(updateLoop);
   }

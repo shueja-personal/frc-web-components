@@ -6,14 +6,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { WebbitConfig } from '@webbitjs/webbit';
 import Store, { SourceProvider } from '@webbitjs/store';
 import * as THREE from 'three';
-import {
-  BoxGeometry,
-  BufferGeometry,
-  Material,
-  Mesh,
-  MeshBasicMaterial,
-  Quaternion,
-} from 'three';
+import { BoxGeometry, Mesh, MeshBasicMaterial, Quaternion } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 // eslint-disable-next-line camelcase
 import { Config3dRobot, Config3d_Rotation } from './FRCData';
@@ -64,25 +57,6 @@ export default class FieldObject3DElement extends LitElement {
       path: '/models/Robot_KitBot.glb',
       rotations: [{ axis: 'z', degrees: 90 }],
       position: [0.12, 3.15, 0],
-      cameras: [
-        {
-          name: 'Front Camera',
-          rotations: [{ axis: 'y', degrees: 20 }],
-          position: [0.2, 0, 0.8],
-          resolution: [960, 720],
-          fov: 100,
-        },
-        {
-          name: 'Back Camera',
-          rotations: [
-            { axis: 'y', degrees: 20 },
-            { axis: 'z', degrees: 180 },
-          ],
-          position: [-0.2, 0, 0.8],
-          resolution: [960, 720],
-          fov: 100,
-        },
-      ],
     };
     // Setup for cone mesh option
     {
@@ -117,8 +91,8 @@ export default class FieldObject3DElement extends LitElement {
     const loader = new GLTFLoader();
     loader.load(robotConfig.path, (gltf) => {
       if (robotConfig === undefined) return;
-      console.log(gltf.scene.children);
       const { geometry } = gltf.scene.children[0] as Mesh;
+      console.log(gltf.scene.children);
       geometry.applyQuaternion(
         this.getQuaternionFromRotSeq(robotConfig.rotations)
       );
@@ -148,12 +122,12 @@ export default class FieldObject3DElement extends LitElement {
 
   // eslint-disable-next-line class-methods-use-this
   updateFromSource(
-    sourceValue: any,
-    _parentKey: string,
-    sourceKey: string
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+    value: unknown
   ): void {
     // Update position and rotation based on array
-    if (!this.isDoubleArray(sourceValue)) return;
+    if (!this.isDoubleArray(value)) return;
+    const sourceValue = value as number[];
 
     if (sourceValue.length % 7 !== 0) return;
 
@@ -181,7 +155,7 @@ export default class FieldObject3DElement extends LitElement {
     }
   }
 
-  updated(changedProperties: any): void {
+  updated(): void {
     const { provider, store, sourceProvider, sourceKey } = this;
     if (!provider || !store || !sourceProvider || !sourceKey) {
       return;
@@ -190,15 +164,16 @@ export default class FieldObject3DElement extends LitElement {
     store.subscribe(
       sourceProvider,
       sourceKey,
-      (sourceValue, parentKey, key) => {
-        this.updateFromSource(sourceValue, parentKey, key);
+      (sourceValue) => {
+        this.updateFromSource(sourceValue);
       },
       true
     );
   }
 
-  // eslint-disable-next-line class-methods-use-this, camelcase
+  // eslint-disable-next-line class-methods-use-this
   private getQuaternionFromRotSeq(
+    // eslint-disable-next-line camelcase
     rotations: Config3d_Rotation[]
   ): THREE.Quaternion {
     const quaternion = new THREE.Quaternion();

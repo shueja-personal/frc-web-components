@@ -41,7 +41,6 @@ export interface Config3dRobot {
   sourceUrl?: string;
   rotations: Config3d_Rotation[];
   position: [number, number, number];
-  cameras: Config3dRobot_Camera[];
 }
 
 export interface ConfigJoystick_Button {
