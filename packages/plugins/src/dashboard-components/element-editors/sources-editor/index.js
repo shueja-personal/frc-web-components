@@ -5,35 +5,34 @@ const styles = css`
   :host {
     display: flex;
     flex-direction: column;
-    padding: 15px 10px;
     font-family: sans-serif;
     box-sizing: border-box;
   }
 
-  [part=source-fields] {
+  [part='source-fields'] {
     display: flex;
   }
 
-  [part=source-fields] vaadin-combo-box {
+  [part='source-fields'] vaadin-combo-box {
     flex: 1;
     margin-right: 7px;
     min-width: 120px;
   }
 
-  [part=source-fields] vaadin-combo-box::part(text-field) {
+  [part='source-fields'] vaadin-combo-box::part(text-field) {
     padding-top: 0;
   }
 
-  [part=source-key-dropdown] {
+  [part='source-key-dropdown'] {
     --vaadin-combo-box-overlay-width: 400px;
   }
 
-  [part=buttons] {
+  [part='buttons'] {
     display: flex;
     justify-content: flex-end;
   }
 
-  [part=buttons] vaadin-button {
+  [part='buttons'] vaadin-button {
     margin-right: 7px;
   }
   p {
@@ -43,7 +42,8 @@ const styles = css`
   p span {
     color: purple;
   }
-  vaadin-form-layout vaadin-combo-box, vaadin-form-layout multiselect-combo-box {
+  vaadin-form-layout vaadin-combo-box,
+  vaadin-form-layout multiselect-combo-box {
     width: calc(100% - 5px);
   }
   vaadin-form-layout vaadin-form-item::part(label) {
@@ -51,12 +51,10 @@ const styles = css`
   }
 
   dashboard-sources-view {
-
   }
 `;
 
 class SourcesEditor extends LitElement {
-
   static styles = styles;
 
   static properties = {
@@ -133,7 +131,7 @@ class SourcesEditor extends LitElement {
 
   // for autocompletion
   getSourceKeyItems() {
-    return [...this.sourceKeys[this.sourceProvider] ?? []];
+    return [...(this.sourceKeys[this.sourceProvider] ?? [])];
   }
 
   updateSourceKeySet(providerName, key) {
@@ -149,7 +147,7 @@ class SourcesEditor extends LitElement {
   }
 
   firstUpdated() {
-    this.store.sourceProviderAdded(name => {
+    this.store.sourceProviderAdded((name) => {
       this.sourceKeys[name] = new Set();
       this.store.subscribeAll(
         name,
@@ -159,7 +157,7 @@ class SourcesEditor extends LitElement {
         true
       );
     });
-    this.sourceProviderNames.forEach(name => {
+    this.sourceProviderNames.forEach((name) => {
       this.sourceKeys[name] = new Set();
       this.store.subscribeAll(
         name,
@@ -173,37 +171,37 @@ class SourcesEditor extends LitElement {
   }
 
   render() {
-    const webbit = this.#element ? this.#connector?.getElementWebbit(this.#element) : null;
+    const webbit = this.#element
+      ? this.#connector?.getElementWebbit(this.#element)
+      : null;
     const disabled = !this.#element || !webbit;
 
     return html`
-      <vaadin-form-layout>
-        <vaadin-form-item>
-          <label slot="label">Source Key</label>
-          <vaadin-combo-box
-            part="source-key-dropdown"
-            clear-button-visible 
-            value="${this.sourceKey}"
-            .items="${this.getSourceKeyItems()}"
-            @change="${this.onSourceKeyInputChange}"
-            theme="small"
-            allow-custom-value
-            ?disabled=${disabled}
-          >
-          </vaadin-combo-box>
-        </vaadin-form-item>
-        <vaadin-form-item>
-          <label slot="label">Source Provider</label>
-          <vaadin-combo-box 
-            clear-button-visible
-            value="${this.sourceProvider}"
-            .items="${this.store?.getSourceProviderNames() ?? []}"
-            @change="${this.onSourceProviderInputChange}"
-            theme="small"
-            ?disabled=${disabled}
-          ></vaadin-combo-box>
-        </vaadin-form-item>
-      </vaadin-form-layout>
+      <div style="display: flex; gap: 10px">
+        <vaadin-combo-box
+          style="flex: 1"
+          label="Source Key"
+          part="source-key-dropdown"
+          clear-button-visible
+          value="${this.sourceKey}"
+          .items="${this.getSourceKeyItems()}"
+          @change="${this.onSourceKeyInputChange}"
+          theme="small"
+          allow-custom-value
+          ?disabled=${disabled}
+        >
+        </vaadin-combo-box>
+        <vaadin-combo-box
+          style="flex: 1"
+          label="Source Provider"
+          clear-button-visible
+          value="${this.sourceProvider}"
+          .items="${this.store?.getSourceProviderNames() ?? []}"
+          @change="${this.onSourceProviderInputChange}"
+          theme="small"
+          ?disabled=${disabled}
+        ></vaadin-combo-box>
+      </div>
       <dashboard-sources-view
         @sourceSelect="${this.onSourceSelect}"
         .sourceKey="${this.sourceKey}"
