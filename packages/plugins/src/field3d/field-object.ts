@@ -28,6 +28,19 @@ export const field3dObjectConfig: Partial<WebbitConfig> = {
       attribute: 'source-key',
       input: { type: 'None' },
     },
+    viewMode: {
+      type: 'String',
+      defaultValue: 'Cone',
+      reflect: true,
+      primary: true,
+      input: {
+        type: 'StringDropdown',
+        allowCustomValues: false,
+        getOptions() {
+          return ['Cone', 'Ball'];
+        },
+      },
+    },
   },
 };
 
@@ -41,6 +54,7 @@ export default class FieldObject3DElement extends LitElement {
   @property({ type: Object, attribute: false }) store?: Store;
   @property({ type: String, attribute: 'source-provider' }) sourceProvider = '';
   @property({ type: String, attribute: 'source-key' }) sourceKey = '';
+  @property({ type: String, attribute: false }) viewMode = '';
   coneMesh: THREE.InstancedMesh;
   robotMesh: THREE.InstancedMesh;
   private displayedMesh: THREE.InstancedMesh;
@@ -155,12 +169,13 @@ export default class FieldObject3DElement extends LitElement {
     }
   }
 
-  updated(): void {
+  updated(changedProperties: any): void {
     const { provider, store, sourceProvider, sourceKey } = this;
     if (!provider || !store || !sourceProvider || !sourceKey) {
       return;
     }
 
+    console.log(changedProperties);
     store.subscribe(
       sourceProvider,
       sourceKey,
